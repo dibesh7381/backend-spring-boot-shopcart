@@ -17,6 +17,8 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -244,8 +246,23 @@ public class AuthService {
         return cartRepository.save(cartItem);
     }
 
-    public List<CartItem> getCartItems(String userId) {
-        return cartRepository.findByUserId(userId);
+    public List<Map<String, Object>> getCartItems(String userId) {
+        List<CartItem> cartItems = cartRepository.findByUserId(userId);
+        List<Map<String, Object>> response = new ArrayList<>();
+
+        for (CartItem cartItem : cartItems) {
+            Product product = productRepository.findById(cartItem.getProductId())
+                    .orElse(null);
+            if (product != null) {
+                Map<String, Object> map = new HashMap<>();
+                map.put("id", cartItem.getId());
+                map.put("quantity", cartItem.getQuantity());
+                map.put("product", product); // Product details bhi aa rahe hain
+                response.add(map);
+            }
+        }
+
+        return response;
     }
 
     public void removeFromCart(String userId, String productId) {
@@ -259,4 +276,25 @@ public class AuthService {
 
         cartRepository.delete(cartItem);
     }
+
+    // ---------------- CLEAR CART ----------------
+    public void clearCart(String userId) {
+        // Sabhi cart items fetch karo
+        List<CartItem> cartItems = cartRepository.findByUserId(userId);
+
+        for (CartItem cartItem : cartItems) {
+            Product product = productRepository.findById(cartItem.getProductId())
+                    .orElse(null);
+            if (product != null) {
+                // Stock ko wapas update karo
+                product.setQuantity(product.getQuantity() + cartItem.getQuantity());
+                productRepository.save(product);
+            }
+        }
+
+        // Saare cart items delete karo
+        cartRepository.deleteByUserId(userId);
+    }
+
+
 }

@@ -12,7 +12,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import shopcart.com.example.shopcart.service.AuthService;
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -283,12 +282,14 @@ public class AuthController {
             String email = jwtUtil.getEmailFromToken(tokenHeader.replace("Bearer ", ""));
             User user = authService.getProfile(email);
 
-            List<CartItem> cartItems = authService.getCartItems(user.getId());
+            // Now get List<Map<String,Object>> instead of List<CartItem>
+            List<Map<String, Object>> cartItems = authService.getCartItems(user.getId());
             return buildResponse(true, "Cart items fetched!", cartItems);
         } catch (Exception e) {
             return buildResponse(false, "Failed to fetch cart items!", e.getMessage());
         }
     }
+
 
     @DeleteMapping("/cart/remove/{productId}")
     public ResponseEntity<?> removeFromCart(
@@ -303,6 +304,23 @@ public class AuthController {
             return buildResponse(true, "Product removed from cart!", null);
         } catch (Exception e) {
             return buildResponse(false, "Failed to remove from cart!", e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/cart/clear")
+    public ResponseEntity<?> clearCart(
+            @RequestHeader("Authorization") String tokenHeader
+    ) {
+        try {
+            // JWT se email nikaalo
+            String email = jwtUtil.getEmailFromToken(tokenHeader.replace("Bearer ", ""));
+            User user = authService.getProfile(email);
+
+            // Service method call jo saare cart items delete kare
+            authService.clearCart(user.getId());
+            return buildResponse(true, "All products removed from cart!", null);
+        } catch (Exception e) {
+            return buildResponse(false, "Failed to clear cart!", e.getMessage());
         }
     }
 

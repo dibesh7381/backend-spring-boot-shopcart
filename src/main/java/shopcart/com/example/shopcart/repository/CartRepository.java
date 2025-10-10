@@ -8,5 +8,6 @@ import java.util.Optional;
 public interface CartRepository extends MongoRepository<CartItem, String> {
     List<CartItem> findByUserId(String userId);
     Optional<CartItem> findByUserIdAndProductId(String userId, String productId);
+    void deleteByUserId(String userId);
 }
 
