@@ -1,12 +1,13 @@
 package shopcart.com.example.shopcart.service;
 
-
 import shopcart.com.example.shopcart.model.User;
 import shopcart.com.example.shopcart.model.Product;
 import shopcart.com.example.shopcart.model.Seller;
+import shopcart.com.example.shopcart.model.CartItem;
 import shopcart.com.example.shopcart.repository.ProductRepository;
 import shopcart.com.example.shopcart.repository.SellerRepository;
 import shopcart.com.example.shopcart.repository.UserRepository;
+import shopcart.com.example.shopcart.repository.CartRepository;
 import shopcart.com.example.shopcart.security.JwtUtil;
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
@@ -25,6 +26,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final SellerRepository sellerRepository;
     private final ProductRepository productRepository;
+    private final CartRepository cartRepository;
     private final JwtUtil jwtUtil;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
     private final Cloudinary cloudinary;
@@ -33,16 +35,18 @@ public class AuthService {
     public AuthService(UserRepository userRepository,
                        SellerRepository sellerRepository,
                        ProductRepository productRepository,
+                       CartRepository cartRepository,
                        JwtUtil jwtUtil,
                        Cloudinary cloudinary) {
         this.userRepository = userRepository;
         this.sellerRepository = sellerRepository;
         this.productRepository = productRepository;
+        this.cartRepository = cartRepository;
         this.jwtUtil = jwtUtil;
         this.cloudinary = cloudinary;
     }
 
-    // ---------------- Save User ----------------
+    // ---------------- User Methods ----------------
     public User saveUser(User user) {
         if (userRepository.existsByEmail(user.getEmail())) {
             throw new RuntimeException("Email already registered!");
@@ -51,7 +55,6 @@ public class AuthService {
         return userRepository.save(user);
     }
 
-    // ---------------- Login ----------------
     public String login(String email, String password) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -61,32 +64,26 @@ public class AuthService {
         return jwtUtil.generateToken(user.getEmail());
     }
 
-    // ---------------- Get Profile ----------------
     public User getProfile(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
     }
 
-    // ---------------- Update Profile ----------------
     public User updateProfile(String currentEmail, User updatedUserData) {
         User user = getProfile(currentEmail);
-
         if (updatedUserData.getName() != null && !updatedUserData.getName().isBlank()) {
             user.setName(updatedUserData.getName());
         }
-
         if (updatedUserData.getEmail() != null && !updatedUserData.getEmail().isBlank()) {
             user.setEmail(updatedUserData.getEmail());
         }
-
         if (updatedUserData.getPassword() != null && !updatedUserData.getPassword().isBlank()) {
             user.setPassword(passwordEncoder.encode(updatedUserData.getPassword()));
         }
-
         return userRepository.save(user);
     }
 
-    // ---------------- Become Seller with Cloudinary image ----------------
+    // ---------------- Seller Methods ----------------
     public User becomeSeller(String email, String shopName, String shopAddress, String shopType, MultipartFile shopImage) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -120,13 +117,12 @@ public class AuthService {
         return user;
     }
 
-    // ---------------- Get Seller by userId ----------------
     public Seller getSellerByUserId(String userId) {
         return sellerRepository.findByUserId(userId)
                 .orElseThrow(() -> new RuntimeException("Seller not found"));
     }
 
-    // ---------------- Add Product ----------------
+    // ---------------- Product Methods ----------------
     public Product addProduct(String email, String brand, String model, String color, double price, String productType, MultipartFile image) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -154,26 +150,23 @@ public class AuthService {
         product.setPrice(price);
         product.setProductType(productType);
         product.setImageUrl(imageUrl);
+        product.setQuantity(1); // default quantity 1
 
         return productRepository.save(product);
     }
 
-    // ---------------- Get Products by Seller Id ----------------
     public List<Product> getProductsBySellerId(String userId) {
         return productRepository.findByUserId(userId);
     }
 
-    // ---------------- Update Product (✅ JSON + Quantity Supported) ----------------
     public Product updateProduct(String userId, String productId, Product updatedProduct) {
         Product existing = productRepository.findById(productId)
                 .orElseThrow(() -> new RuntimeException("Product not found"));
 
-        // ✅ ensure seller owns the product
         if (!existing.getUserId().equals(userId)) {
             throw new RuntimeException("Unauthorized to update this product");
         }
 
-        // ✅ update allowed fields
         if (updatedProduct.getBrand() != null) existing.setBrand(updatedProduct.getBrand());
         if (updatedProduct.getModel() != null) existing.setModel(updatedProduct.getModel());
         if (updatedProduct.getColor() != null) existing.setColor(updatedProduct.getColor());
@@ -184,7 +177,6 @@ public class AuthService {
         return productRepository.save(existing);
     }
 
-    // ---------------- Delete Product ----------------
     public void deleteProduct(String userId, String productId) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new RuntimeException("Product not found"));
@@ -196,8 +188,75 @@ public class AuthService {
         productRepository.delete(product);
     }
 
-    // ---------------- Encode Password Utility ----------------
+    // ---------------- Encode Password ----------------
     public String encodePassword(String rawPassword) {
         return passwordEncoder.encode(rawPassword);
+    }
+
+    // ---------------- CART METHODS ----------------
+
+    public CartItem addToCart(String userId, String productId) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found"));
+        if (product.getQuantity() <= 0) throw new RuntimeException("Product out of stock");
+
+        CartItem cartItem = cartRepository.findByUserIdAndProductId(userId, productId)
+                .orElse(new CartItem(null, userId, productId, 0));
+
+        cartItem.setQuantity(cartItem.getQuantity() + 1);
+        product.setQuantity(product.getQuantity() - 1);
+
+        productRepository.save(product);
+        return cartRepository.save(cartItem);
+    }
+
+    public CartItem increaseCartQuantity(String userId, String productId) {
+        CartItem cartItem = cartRepository.findByUserIdAndProductId(userId, productId)
+                .orElseThrow(() -> new RuntimeException("Cart item not found"));
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found"));
+
+        if (product.getQuantity() <= 0) throw new RuntimeException("No more stock available");
+
+        cartItem.setQuantity(cartItem.getQuantity() + 1);
+        product.setQuantity(product.getQuantity() - 1);
+
+        productRepository.save(product);
+        return cartRepository.save(cartItem);
+    }
+
+    public CartItem decreaseCartQuantity(String userId, String productId) {
+        CartItem cartItem = cartRepository.findByUserIdAndProductId(userId, productId)
+                .orElseThrow(() -> new RuntimeException("Cart item not found"));
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found"));
+
+        cartItem.setQuantity(cartItem.getQuantity() - 1);
+        product.setQuantity(product.getQuantity() + 1);
+
+        if (cartItem.getQuantity() <= 0) {
+            cartRepository.delete(cartItem);
+            productRepository.save(product);
+            return null;
+        }
+
+        productRepository.save(product);
+        return cartRepository.save(cartItem);
+    }
+
+    public List<CartItem> getCartItems(String userId) {
+        return cartRepository.findByUserId(userId);
+    }
+
+    public void removeFromCart(String userId, String productId) {
+        CartItem cartItem = cartRepository.findByUserIdAndProductId(userId, productId)
+                .orElseThrow(() -> new RuntimeException("Cart item not found"));
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found"));
+
+        product.setQuantity(product.getQuantity() + cartItem.getQuantity());
+        productRepository.save(product);
+
+        cartRepository.delete(cartItem);
     }
 }

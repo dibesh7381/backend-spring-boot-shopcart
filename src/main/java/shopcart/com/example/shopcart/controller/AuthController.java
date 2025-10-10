@@ -3,6 +3,7 @@ package shopcart.com.example.shopcart.controller;
 import shopcart.com.example.shopcart.model.User;
 import shopcart.com.example.shopcart.model.Product;
 import shopcart.com.example.shopcart.model.Seller;
+import shopcart.com.example.shopcart.model.CartItem;
 import shopcart.com.example.shopcart.repository.ProductRepository;
 import shopcart.com.example.shopcart.security.JwtUtil;
 import com.cloudinary.Cloudinary;
@@ -13,11 +14,12 @@ import org.springframework.web.multipart.MultipartFile;
 import shopcart.com.example.shopcart.service.AuthService;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/auth")
-@CrossOrigin("*") // React frontend se fetch ke liye
+@CrossOrigin("*")
 public class AuthController {
 
     private final AuthService authService;
@@ -33,7 +35,6 @@ public class AuthController {
         this.cloudinary = cloudinary;
     }
 
-    // ---------------- Utility Response Builder ----------------
     private ResponseEntity<?> buildResponse(boolean success, String message, Object data) {
         Map<String, Object> response = new HashMap<>();
         response.put("success", success);
@@ -119,7 +120,7 @@ public class AuthController {
         }
     }
 
-    // ---------------- Add Product ----------------
+    // ---------------- Product Endpoints ----------------
     @PostMapping("/add-product")
     public ResponseEntity<?> addProduct(
             @RequestHeader("Authorization") String tokenHeader,
@@ -133,23 +134,13 @@ public class AuthController {
     ) {
         try {
             String email = jwtUtil.getEmailFromToken(tokenHeader.replace("Bearer ", ""));
-            Product product = new Product();
-            product.setBrand(brand);
-            product.setModel(model);
-            product.setColor(color);
-            product.setPrice(price);
-            product.setProductType(productType);
-            product.setQuantity(quantity != null ? quantity : 1);
-
             Product savedProduct = authService.addProduct(email, brand, model, color, price, productType, image);
             return buildResponse(true, "Product added successfully!", savedProduct);
-
         } catch (Exception e) {
             return buildResponse(false, "Failed to add product!", e.getMessage());
         }
     }
 
-    // ---------------- Get Seller's Products ----------------
     @GetMapping("/my-products")
     public ResponseEntity<?> getMyProducts(@RequestHeader("Authorization") String tokenHeader) {
         try {
@@ -167,7 +158,6 @@ public class AuthController {
         }
     }
 
-    // ---------------- Update Product ----------------
     @PutMapping("/update-product/{productId}")
     public ResponseEntity<?> updateProduct(
             @RequestHeader("Authorization") String tokenHeader,
@@ -190,7 +180,6 @@ public class AuthController {
         }
     }
 
-    // ---------------- Delete Product ----------------
     @DeleteMapping("/delete-product/{productId}")
     public ResponseEntity<?> deleteProduct(
             @RequestHeader("Authorization") String tokenHeader,
@@ -211,7 +200,6 @@ public class AuthController {
         }
     }
 
-    // ---------------- Get All Products ----------------
     @GetMapping("/all-products")
     public ResponseEntity<?> getAllProducts(@RequestHeader("Authorization") String tokenHeader) {
         try {
@@ -222,7 +210,6 @@ public class AuthController {
         }
     }
 
-    // ---------------- Get My Shop ----------------
     @GetMapping("/my-shop")
     public ResponseEntity<?> getMyShop(@RequestHeader("Authorization") String tokenHeader) {
         try {
@@ -237,6 +224,85 @@ public class AuthController {
             return buildResponse(true, "Seller details fetched successfully!", seller);
         } catch (Exception e) {
             return buildResponse(false, "Failed to fetch shop details!", e.getMessage());
+        }
+    }
+
+    // ---------------- CART ENDPOINTS ----------------
+
+    @PostMapping("/cart/add/{productId}")
+    public ResponseEntity<?> addToCart(
+            @RequestHeader("Authorization") String tokenHeader,
+            @PathVariable String productId
+    ) {
+        try {
+            String email = jwtUtil.getEmailFromToken(tokenHeader.replace("Bearer ", ""));
+            User user = authService.getProfile(email);
+
+            CartItem item = authService.addToCart(user.getId(), productId);
+            return buildResponse(true, "Product added to cart!", item);
+        } catch (Exception e) {
+            return buildResponse(false, "Failed to add to cart!", e.getMessage());
+        }
+    }
+
+    @PutMapping("/cart/increase/{productId}")
+    public ResponseEntity<?> increaseCartQuantity(
+            @RequestHeader("Authorization") String tokenHeader,
+            @PathVariable String productId
+    ) {
+        try {
+            String email = jwtUtil.getEmailFromToken(tokenHeader.replace("Bearer ", ""));
+            User user = authService.getProfile(email);
+
+            CartItem item = authService.increaseCartQuantity(user.getId(), productId);
+            return buildResponse(true, "Cart quantity increased!", item);
+        } catch (Exception e) {
+            return buildResponse(false, "Failed to increase cart quantity!", e.getMessage());
+        }
+    }
+
+    @PutMapping("/cart/decrease/{productId}")
+    public ResponseEntity<?> decreaseCartQuantity(
+            @RequestHeader("Authorization") String tokenHeader,
+            @PathVariable String productId
+    ) {
+        try {
+            String email = jwtUtil.getEmailFromToken(tokenHeader.replace("Bearer ", ""));
+            User user = authService.getProfile(email);
+
+            CartItem item = authService.decreaseCartQuantity(user.getId(), productId);
+            return buildResponse(true, "Cart quantity decreased!", item);
+        } catch (Exception e) {
+            return buildResponse(false, "Failed to decrease cart quantity!", e.getMessage());
+        }
+    }
+
+    @GetMapping("/cart")
+    public ResponseEntity<?> getCartItems(@RequestHeader("Authorization") String tokenHeader) {
+        try {
+            String email = jwtUtil.getEmailFromToken(tokenHeader.replace("Bearer ", ""));
+            User user = authService.getProfile(email);
+
+            List<CartItem> cartItems = authService.getCartItems(user.getId());
+            return buildResponse(true, "Cart items fetched!", cartItems);
+        } catch (Exception e) {
+            return buildResponse(false, "Failed to fetch cart items!", e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/cart/remove/{productId}")
+    public ResponseEntity<?> removeFromCart(
+            @RequestHeader("Authorization") String tokenHeader,
+            @PathVariable String productId
+    ) {
+        try {
+            String email = jwtUtil.getEmailFromToken(tokenHeader.replace("Bearer ", ""));
+            User user = authService.getProfile(email);
+
+            authService.removeFromCart(user.getId(), productId);
+            return buildResponse(true, "Product removed from cart!", null);
+        } catch (Exception e) {
+            return buildResponse(false, "Failed to remove from cart!", e.getMessage());
         }
     }
 
