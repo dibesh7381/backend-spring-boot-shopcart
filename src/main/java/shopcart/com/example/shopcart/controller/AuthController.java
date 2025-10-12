@@ -119,7 +119,6 @@ public class AuthController {
         }
     }
 
-    // ---------------- Product Endpoints ----------------
     @PostMapping("/add-product")
     public ResponseEntity<?> addProduct(
             @RequestHeader("Authorization") String tokenHeader,
@@ -128,17 +127,23 @@ public class AuthController {
             @RequestParam(required = false) String color,
             @RequestParam Double price,
             @RequestParam(required = false) String productType,
-            @RequestParam(required = false) Integer quantity,
+            @RequestParam(required = false) Integer quantity,       // ✅ new
             @RequestParam(required = false) MultipartFile image
     ) {
         try {
+            // ✅ Get user email from token
             String email = jwtUtil.getEmailFromToken(tokenHeader.replace("Bearer ", ""));
-            Product savedProduct = authService.addProduct(email, brand, model, color, price, productType, image);
+
+            // ✅ Call service method with quantity
+            Product savedProduct = authService.addProduct(email, brand, model, color, price, productType, quantity, image);
+
             return buildResponse(true, "Product added successfully!", savedProduct);
         } catch (Exception e) {
             return buildResponse(false, "Failed to add product!", e.getMessage());
         }
     }
+
+
 
     @GetMapping("/my-products")
     public ResponseEntity<?> getMyProducts(@RequestHeader("Authorization") String tokenHeader) {
@@ -161,7 +166,13 @@ public class AuthController {
     public ResponseEntity<?> updateProduct(
             @RequestHeader("Authorization") String tokenHeader,
             @PathVariable String productId,
-            @RequestBody Product updatedProduct
+            @RequestParam(required = false) String brand,
+            @RequestParam(required = false) String model,
+            @RequestParam(required = false) String color,
+            @RequestParam(required = false) Double price,
+            @RequestParam(required = false) String productType,
+            @RequestParam(required = false) Integer quantity,
+            @RequestParam(required = false) MultipartFile image
     ) {
         try {
             String email = jwtUtil.getEmailFromToken(tokenHeader.replace("Bearer ", ""));
@@ -171,9 +182,19 @@ public class AuthController {
                 return buildResponse(false, "Only sellers can update products!", null);
             }
 
-            Product savedProduct = authService.updateProduct(user.getId(), productId, updatedProduct);
-            return buildResponse(true, "Product updated successfully!", savedProduct);
+            Product savedProduct = authService.updateProductWithFormData(
+                    user.getId(),
+                    productId,
+                    brand,
+                    model,
+                    color,
+                    price,
+                    productType,
+                    quantity,
+                    image
+            );
 
+            return buildResponse(true, "Product updated successfully!", savedProduct);
         } catch (Exception e) {
             return buildResponse(false, "Failed to update product!", e.getMessage());
         }
@@ -200,7 +221,7 @@ public class AuthController {
     }
 
     @GetMapping("/all-products")
-    public ResponseEntity<?> getAllProducts(@RequestHeader("Authorization") String tokenHeader) {
+    public ResponseEntity<?> getAllProducts() {
         try {
             var products = productRepository.findAll();
             return buildResponse(true, "All products fetched successfully!", products);
@@ -227,7 +248,6 @@ public class AuthController {
     }
 
     // ---------------- CART ENDPOINTS ----------------
-
     @PostMapping("/cart/add/{productId}")
     public ResponseEntity<?> addToCart(
             @RequestHeader("Authorization") String tokenHeader,
@@ -282,14 +302,12 @@ public class AuthController {
             String email = jwtUtil.getEmailFromToken(tokenHeader.replace("Bearer ", ""));
             User user = authService.getProfile(email);
 
-            // Now get List<Map<String,Object>> instead of List<CartItem>
             List<Map<String, Object>> cartItems = authService.getCartItems(user.getId());
             return buildResponse(true, "Cart items fetched!", cartItems);
         } catch (Exception e) {
             return buildResponse(false, "Failed to fetch cart items!", e.getMessage());
         }
     }
-
 
     @DeleteMapping("/cart/remove/{productId}")
     public ResponseEntity<?> removeFromCart(
@@ -308,15 +326,11 @@ public class AuthController {
     }
 
     @DeleteMapping("/cart/clear")
-    public ResponseEntity<?> clearCart(
-            @RequestHeader("Authorization") String tokenHeader
-    ) {
+    public ResponseEntity<?> clearCart(@RequestHeader("Authorization") String tokenHeader) {
         try {
-            // JWT se email nikaalo
             String email = jwtUtil.getEmailFromToken(tokenHeader.replace("Bearer ", ""));
             User user = authService.getProfile(email);
 
-            // Service method call jo saare cart items delete kare
             authService.clearCart(user.getId());
             return buildResponse(true, "All products removed from cart!", null);
         } catch (Exception e) {
@@ -335,3 +349,4 @@ public class AuthController {
         return buildResponse(true, "About Page", "This project is an E-commerce demo built using Spring Boot + React.");
     }
 }
+

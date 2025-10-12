@@ -17,10 +17,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Service
 public class AuthService {
@@ -125,7 +122,10 @@ public class AuthService {
     }
 
     // ---------------- Product Methods ----------------
-    public Product addProduct(String email, String brand, String model, String color, double price, String productType, MultipartFile image) {
+    public Product addProduct(String email, String brand, String model, String color,
+                              double price, String productType, Integer quantity, MultipartFile image) {
+
+        // ✅ Fetch user by email
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -133,6 +133,7 @@ public class AuthService {
             throw new RuntimeException("Only sellers can add products!");
         }
 
+        // ✅ Upload image to Cloudinary
         String imageUrl = null;
         if (image != null && !image.isEmpty()) {
             try {
@@ -144,6 +145,7 @@ public class AuthService {
             }
         }
 
+        // ✅ Create product
         Product product = new Product();
         product.setUserId(user.getId());
         product.setBrand(brand);
@@ -152,16 +154,31 @@ public class AuthService {
         product.setPrice(price);
         product.setProductType(productType);
         product.setImageUrl(imageUrl);
-        product.setQuantity(1); // default quantity 1
+        product.setQuantity(quantity != null ? quantity : 1); // ✅ use frontend quantity
+
+        // ✅ Fetch Seller and set shopType automatically
+        Seller seller = sellerRepository.findByUserId(user.getId())
+                .orElseThrow(() -> new RuntimeException("Seller info not found"));
+        product.setShopType(seller.getShopType());
 
         return productRepository.save(product);
     }
+
+
 
     public List<Product> getProductsBySellerId(String userId) {
         return productRepository.findByUserId(userId);
     }
 
-    public Product updateProduct(String userId, String productId, Product updatedProduct) {
+    public Product updateProductWithFormData(String userId, String productId,
+                                             String brand,
+                                             String model,
+                                             String color,
+                                             Double price,
+                                             String productType,
+                                             Integer quantity,
+                                             MultipartFile image) {
+
         Product existing = productRepository.findById(productId)
                 .orElseThrow(() -> new RuntimeException("Product not found"));
 
@@ -169,12 +186,22 @@ public class AuthService {
             throw new RuntimeException("Unauthorized to update this product");
         }
 
-        if (updatedProduct.getBrand() != null) existing.setBrand(updatedProduct.getBrand());
-        if (updatedProduct.getModel() != null) existing.setModel(updatedProduct.getModel());
-        if (updatedProduct.getColor() != null) existing.setColor(updatedProduct.getColor());
-        if (updatedProduct.getPrice() != 0) existing.setPrice(updatedProduct.getPrice());
-        if (updatedProduct.getQuantity() != null) existing.setQuantity(updatedProduct.getQuantity());
-        if (updatedProduct.getProductType() != null) existing.setProductType(updatedProduct.getProductType());
+        if (brand != null && !brand.isBlank()) existing.setBrand(brand);
+        if (model != null && !model.isBlank()) existing.setModel(model);
+        if (color != null && !color.isBlank()) existing.setColor(color);
+        if (price != null && price > 0) existing.setPrice(price);
+        if (quantity != null && quantity >= 0) existing.setQuantity(quantity);
+        if (productType != null && !productType.isBlank()) existing.setProductType(productType);
+
+        if (image != null && !image.isEmpty()) {
+            try {
+                Map uploadResult = cloudinary.uploader().upload(image.getBytes(),
+                        ObjectUtils.asMap("folder", "product_images"));
+                existing.setImageUrl((String) uploadResult.get("secure_url"));
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to upload product image to Cloudinary");
+            }
+        }
 
         return productRepository.save(existing);
     }
@@ -196,7 +223,6 @@ public class AuthService {
     }
 
     // ---------------- CART METHODS ----------------
-
     public CartItem addToCart(String userId, String productId) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new RuntimeException("Product not found"));
@@ -257,13 +283,15 @@ public class AuthService {
                 Map<String, Object> map = new HashMap<>();
                 map.put("id", cartItem.getId());
                 map.put("quantity", cartItem.getQuantity());
-                map.put("product", product); // Product details bhi aa rahe hain
+                map.put("product", product);
                 response.add(map);
             }
         }
 
         return response;
     }
+
+
 
     public void removeFromCart(String userId, String productId) {
         CartItem cartItem = cartRepository.findByUserIdAndProductId(userId, productId)
@@ -277,24 +305,19 @@ public class AuthService {
         cartRepository.delete(cartItem);
     }
 
-    // ---------------- CLEAR CART ----------------
     public void clearCart(String userId) {
-        // Sabhi cart items fetch karo
         List<CartItem> cartItems = cartRepository.findByUserId(userId);
 
         for (CartItem cartItem : cartItems) {
             Product product = productRepository.findById(cartItem.getProductId())
                     .orElse(null);
             if (product != null) {
-                // Stock ko wapas update karo
                 product.setQuantity(product.getQuantity() + cartItem.getQuantity());
                 productRepository.save(product);
             }
         }
 
-        // Saare cart items delete karo
         cartRepository.deleteByUserId(userId);
     }
-
-
 }
+
