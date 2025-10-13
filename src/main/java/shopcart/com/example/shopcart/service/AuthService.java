@@ -478,7 +478,19 @@ public class AuthService {
     }
 
     // ---------------- Product Methods ----------------
-    public ProductResponseDTO addProduct(String email, String brand, String model, String color, double price, String productType, Integer quantity, MultipartFile image) {
+    public ProductResponseDTO addProduct(
+            String email,
+            String brand,
+            String model,
+            String color,
+            double price,
+            String productType,
+            Integer quantity,
+            MultipartFile image,
+            String category,
+            String size,
+            String shoeSize
+    ) {
         User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
         if (!"seller".equals(user.getRole())) throw new RuntimeException("Only sellers can add products!");
 
@@ -501,6 +513,9 @@ public class AuthService {
         product.setProductType(productType);
         product.setQuantity(quantity != null ? quantity : 1);
         product.setImageUrl(imageUrl);
+        product.setCategory(category);
+        product.setSize(size);
+        product.setShoeSize(shoeSize);
 
         Seller seller = sellerRepository.findByUserId(user.getId()).orElseThrow(() -> new RuntimeException("Seller info not found"));
         product.setShopType(seller.getShopType());
@@ -516,9 +531,13 @@ public class AuthService {
                 savedProduct.getProductType(),
                 savedProduct.getQuantity(),
                 savedProduct.getImageUrl(),
-                savedProduct.getShopType()
+                savedProduct.getShopType(),
+                savedProduct.getCategory(),
+                savedProduct.getSize(),
+                savedProduct.getShoeSize()
         );
     }
+
 
     public List<ProductResponseDTO> getProductsBySellerId(String userId) {
         List<Product> products = productRepository.findByUserId(userId);
@@ -534,15 +553,26 @@ public class AuthService {
                     p.getProductType(),
                     p.getQuantity(),
                     p.getImageUrl(),
-                    p.getShopType()
+                    p.getShopType(),
+                    p.getCategory(),
+                    p.getSize(),
+                    p.getShoeSize()
             ));
         }
         return response;
     }
 
-    public ProductResponseDTO updateProductWithFormData(String userId, String productId, String brand, String model, String color, Double price, String productType, Integer quantity, MultipartFile image) {
-        Product existing = productRepository.findById(productId).orElseThrow(() -> new RuntimeException("Product not found"));
-        if (!existing.getUserId().equals(userId)) throw new RuntimeException("Unauthorized to update this product");
+
+    public ProductResponseDTO updateProductWithFormData(
+            String userId, String productId,
+            String brand, String model, String color, Double price,
+            String productType, Integer quantity, MultipartFile image,
+            String category, String size, String shoeSize
+    ) {
+        Product existing = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found"));
+        if (!existing.getUserId().equals(userId))
+            throw new RuntimeException("Unauthorized to update this product");
 
         if (brand != null && !brand.isBlank()) existing.setBrand(brand);
         if (model != null && !model.isBlank()) existing.setModel(model);
@@ -550,6 +580,9 @@ public class AuthService {
         if (price != null && price > 0) existing.setPrice(price);
         if (quantity != null && quantity >= 0) existing.setQuantity(quantity);
         if (productType != null && !productType.isBlank()) existing.setProductType(productType);
+        if (category != null && !category.isBlank()) existing.setCategory(category);
+        if (size != null && !size.isBlank()) existing.setSize(size);
+        if (shoeSize != null && !shoeSize.isBlank()) existing.setShoeSize(shoeSize);
 
         if (image != null && !image.isEmpty()) {
             try {
@@ -571,9 +604,13 @@ public class AuthService {
                 savedProduct.getProductType(),
                 savedProduct.getQuantity(),
                 savedProduct.getImageUrl(),
-                savedProduct.getShopType()
+                savedProduct.getShopType(),
+                savedProduct.getCategory(),
+                savedProduct.getSize(),
+                savedProduct.getShoeSize()
         );
     }
+
 
     public void deleteProduct(String userId, String productId) {
         Product product = productRepository.findById(productId)
@@ -599,7 +636,10 @@ public class AuthService {
                     p.getProductType(),
                     p.getQuantity(),
                     p.getImageUrl(),
-                    p.getShopType()
+                    p.getShopType(),
+                    p.getCategory(),
+                    p.getSize(),
+                    p.getShoeSize()
             ));
         }
 
@@ -619,7 +659,19 @@ public class AuthService {
         productRepository.save(product);
         CartItem savedCart = cartRepository.save(cartItem);
 
-        ProductResponseDTO productDto = new ProductResponseDTO(product.getId(), product.getUserId(), product.getBrand(), product.getModel(), product.getColor(), product.getPrice(), product.getProductType(), product.getQuantity(), product.getImageUrl(), product.getShopType());
+        ProductResponseDTO productDto = new ProductResponseDTO(product.getId(),
+                product.getUserId(),
+                product.getBrand(),
+                product.getModel(),
+                product.getColor(),
+                product.getPrice(),
+                product.getProductType(),
+                product.getQuantity(),
+                product.getImageUrl(),
+                product.getShopType(),
+                product.getCategory(),
+                product.getSize(),
+                product.getShoeSize());
         return new CartResponseDTO(savedCart.getId(), savedCart.getUserId(), productDto, savedCart.getQuantity());
     }
 
@@ -629,7 +681,19 @@ public class AuthService {
         for (CartItem item : cartItems) {
             Product product = productRepository.findById(item.getProductId()).orElse(null);
             if (product != null) {
-                ProductResponseDTO productDto = new ProductResponseDTO(product.getId(), product.getUserId(), product.getBrand(), product.getModel(), product.getColor(), product.getPrice(), product.getProductType(), product.getQuantity(), product.getImageUrl(), product.getShopType());
+                ProductResponseDTO productDto = new ProductResponseDTO(product.getId(),
+                        product.getUserId(),
+                        product.getBrand(),
+                        product.getModel(),
+                        product.getColor(),
+                        product.getPrice(),
+                        product.getProductType(),
+                        product.getQuantity(),
+                        product.getImageUrl(),
+                        product.getShopType(),
+                        product.getCategory(),
+                        product.getSize(),
+                        product.getShoeSize());
                 response.add(new CartResponseDTO(item.getId(), item.getUserId(), productDto, item.getQuantity()));
             }
         }
@@ -647,7 +711,19 @@ public class AuthService {
         productRepository.save(product);
         CartItem savedCart = cartRepository.save(cartItem);
 
-        ProductResponseDTO productDto = new ProductResponseDTO(product.getId(), product.getUserId(), product.getBrand(), product.getModel(), product.getColor(), product.getPrice(), product.getProductType(), product.getQuantity(), product.getImageUrl(), product.getShopType());
+        ProductResponseDTO productDto = new ProductResponseDTO(product.getId(),
+                product.getUserId(),
+                product.getBrand(),
+                product.getModel(),
+                product.getColor(),
+                product.getPrice(),
+                product.getProductType(),
+                product.getQuantity(),
+                product.getImageUrl(),
+                product.getShopType(),
+                product.getCategory(),
+                product.getSize(),
+                product.getShoeSize());
         return new CartResponseDTO(savedCart.getId(), savedCart.getUserId(), productDto, savedCart.getQuantity());
     }
 
@@ -667,7 +743,19 @@ public class AuthService {
         productRepository.save(product);
         CartItem savedCart = cartRepository.save(cartItem);
 
-        ProductResponseDTO productDto = new ProductResponseDTO(product.getId(), product.getUserId(), product.getBrand(), product.getModel(), product.getColor(), product.getPrice(), product.getProductType(), product.getQuantity(), product.getImageUrl(), product.getShopType());
+        ProductResponseDTO productDto = new ProductResponseDTO(product.getId(),
+                product.getUserId(),
+                product.getBrand(),
+                product.getModel(),
+                product.getColor(),
+                product.getPrice(),
+                product.getProductType(),
+                product.getQuantity(),
+                product.getImageUrl(),
+                product.getShopType(),
+                product.getCategory(),
+                product.getSize(),
+                product.getShoeSize());
         return new CartResponseDTO(savedCart.getId(), savedCart.getUserId(), productDto, savedCart.getQuantity());
     }
 

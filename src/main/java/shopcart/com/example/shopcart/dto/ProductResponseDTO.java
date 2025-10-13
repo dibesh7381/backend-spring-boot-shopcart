@@ -16,4 +16,10 @@ public class ProductResponseDTO {
     private Integer quantity;
     private String imageUrl;
     private String shopType;
+
+    // ✅ Extra fields
+    private String category;   // Male/Female/Kids
+    private String size;       // M, L, XL
+    private String shoeSize;   // 6, 7, 8, 9, etc.
 }
+

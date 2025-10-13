@@ -335,7 +335,6 @@
 package shopcart.com.example.shopcart.controller;
 
 import shopcart.com.example.shopcart.dto.*;
-import shopcart.com.example.shopcart.model.User;
 import shopcart.com.example.shopcart.repository.ProductRepository;
 import shopcart.com.example.shopcart.security.JwtUtil;
 import shopcart.com.example.shopcart.service.AuthService;
@@ -441,11 +440,16 @@ public class AuthController {
             @RequestParam Double price,
             @RequestParam(required = false) String productType,
             @RequestParam(required = false) Integer quantity,
-            @RequestParam(required = false) MultipartFile image
+            @RequestParam(required = false) MultipartFile image,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String size,
+            @RequestParam(required = false) String shoeSize
     ) {
         try {
             String email = jwtUtil.getEmailFromToken(tokenHeader.replace("Bearer ", ""));
-            ProductResponseDTO savedProduct = authService.addProduct(email, brand, model, color, price, productType, quantity, image);
+            ProductResponseDTO savedProduct = authService.addProduct(
+                    email, brand, model, color, price, productType, quantity, image, category, size, shoeSize
+            );
             return ResponseEntity.ok(new ApiResponseDTO<>(true, "Product added successfully!", savedProduct));
         } catch (Exception e) {
             return ResponseEntity.ok(new ApiResponseDTO<>(false, "Failed to add product!", e.getMessage()));
@@ -470,7 +474,6 @@ public class AuthController {
         }
     }
 
-    // ---------------- Update Product ----------------
     @PutMapping("/update-product/{productId}")
     public ResponseEntity<ApiResponseDTO<?>> updateProduct(
             @RequestHeader("Authorization") String tokenHeader,
@@ -481,23 +484,30 @@ public class AuthController {
             @RequestParam(required = false) Double price,
             @RequestParam(required = false) String productType,
             @RequestParam(required = false) Integer quantity,
-            @RequestParam(required = false) MultipartFile image
+            @RequestParam(required = false) MultipartFile image,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String size,
+            @RequestParam(required = false) String shoeSize
     ) {
         try {
             String email = jwtUtil.getEmailFromToken(tokenHeader.replace("Bearer ", ""));
             UserProfileResponseDTO user = authService.getProfile(email);
 
-
             if (!"seller".equals(user.getRole())) {
                 return ResponseEntity.ok(new ApiResponseDTO<>(false, "Only sellers can update products!", null));
             }
 
-            ProductResponseDTO savedProduct = authService.updateProductWithFormData(user.getId(), productId, brand, model, color, price, productType, quantity, image);
+            ProductResponseDTO savedProduct = authService.updateProductWithFormData(
+                    user.getId(), productId, brand, model, color, price, productType, quantity, image,
+                    category, size, shoeSize
+            );
+
             return ResponseEntity.ok(new ApiResponseDTO<>(true, "Product updated successfully!", savedProduct));
         } catch (Exception e) {
             return ResponseEntity.ok(new ApiResponseDTO<>(false, "Failed to update product!", e.getMessage()));
         }
     }
+
 
     // ---------------- Delete Product ----------------
     @DeleteMapping("/delete-product/{productId}")
