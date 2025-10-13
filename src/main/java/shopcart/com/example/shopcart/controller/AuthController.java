@@ -430,6 +430,25 @@ public class AuthController {
         }
     }
 
+    // ---------------- My Shop ----------------
+    @GetMapping("/my-shop")
+    public ResponseEntity<ApiResponseDTO<?>> getMyShop(@RequestHeader("Authorization") String tokenHeader) {
+        try {
+            String email = jwtUtil.getEmailFromToken(tokenHeader.replace("Bearer ", ""));
+            UserProfileResponseDTO userProfile = authService.getProfile(email);
+
+            if (!"seller".equals(userProfile.getRole())) {
+                return ResponseEntity.ok(new ApiResponseDTO<>(false, "You are not a seller yet!", null));
+            }
+
+            SellerResponseDTO seller = authService.getSellerDetailsByUserId(userProfile.getId());
+            return ResponseEntity.ok(new ApiResponseDTO<>(true, "Seller shop details fetched successfully!", seller));
+        } catch (Exception e) {
+            return ResponseEntity.ok(new ApiResponseDTO<>(false, "Failed to fetch shop details!", e.getMessage()));
+        }
+    }
+
+
     // ---------------- Add Product ----------------
     @PostMapping("/add-product")
     public ResponseEntity<ApiResponseDTO<?>> addProduct(

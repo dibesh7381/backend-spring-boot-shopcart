@@ -477,6 +477,19 @@ public class AuthService {
         return new SellerResponseDTO(seller.getId(), seller.getUserId(), seller.getShopName(), seller.getShopAddress(), seller.getShopType(), seller.getShopPhotoUrl());
     }
 
+    public SellerResponseDTO getSellerDetailsByUserId(String userId) {
+        Seller seller = sellerRepository.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("Seller not found!"));
+        return new SellerResponseDTO(
+                seller.getId(),
+                seller.getUserId(),      // <-- add this
+                seller.getShopName(),
+                seller.getShopAddress(),
+                seller.getShopType(),
+                seller.getShopPhotoUrl()
+        );
+    }
+
     // ---------------- Product Methods ----------------
     public ProductResponseDTO addProduct(
             String email,
