@@ -521,6 +521,18 @@ public class AuthController {
         }
     }
 
+    // ---------------- All Products ----------------
+    @GetMapping("/all-products")
+    public ResponseEntity<ApiResponseDTO<?>> getAllProducts() {
+        try {
+            List<ProductResponseDTO> products = authService.getAllProducts();
+            return ResponseEntity.ok(new ApiResponseDTO<>(true, "All products fetched successfully!", products));
+        } catch (Exception e) {
+            return ResponseEntity.ok(new ApiResponseDTO<>(false, "Failed to fetch products!", e.getMessage()));
+        }
+    }
+
+
     // ---------------- Get Cart Items ----------------
     @GetMapping("/cart")
     public ResponseEntity<ApiResponseDTO<?>> getCartItems(@RequestHeader("Authorization") String tokenHeader) {

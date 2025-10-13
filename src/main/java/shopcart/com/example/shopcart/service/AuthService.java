@@ -506,14 +506,36 @@ public class AuthService {
         product.setShopType(seller.getShopType());
 
         Product savedProduct = productRepository.save(product);
-        return new ProductResponseDTO(savedProduct.getId(), savedProduct.getUserId(), savedProduct.getBrand(), savedProduct.getModel(), savedProduct.getColor(), savedProduct.getPrice(), savedProduct.getProductType(), savedProduct.getQuantity(), savedProduct.getImageUrl(), savedProduct.getShopType());
+        return new ProductResponseDTO(
+                savedProduct.getId(),
+                savedProduct.getUserId(),
+                savedProduct.getBrand(),
+                savedProduct.getModel(),
+                savedProduct.getColor(),
+                savedProduct.getPrice(),
+                savedProduct.getProductType(),
+                savedProduct.getQuantity(),
+                savedProduct.getImageUrl(),
+                savedProduct.getShopType()
+        );
     }
 
     public List<ProductResponseDTO> getProductsBySellerId(String userId) {
         List<Product> products = productRepository.findByUserId(userId);
         List<ProductResponseDTO> response = new ArrayList<>();
         for (Product p : products) {
-            response.add(new ProductResponseDTO(p.getId(), p.getUserId(), p.getBrand(), p.getModel(), p.getColor(), p.getPrice(), p.getProductType(), p.getQuantity(), p.getImageUrl(), p.getShopType()));
+            response.add(new ProductResponseDTO(
+                    p.getId(),
+                    p.getUserId(),
+                    p.getBrand(),
+                    p.getModel(),
+                    p.getColor(),
+                    p.getPrice(),
+                    p.getProductType(),
+                    p.getQuantity(),
+                    p.getImageUrl(),
+                    p.getShopType()
+            ));
         }
         return response;
     }
@@ -539,14 +561,51 @@ public class AuthService {
         }
 
         Product savedProduct = productRepository.save(existing);
-        return new ProductResponseDTO(savedProduct.getId(), savedProduct.getUserId(), savedProduct.getBrand(), savedProduct.getModel(), savedProduct.getColor(), savedProduct.getPrice(), savedProduct.getProductType(), savedProduct.getQuantity(), savedProduct.getImageUrl(), savedProduct.getShopType());
+        return new ProductResponseDTO(
+                savedProduct.getId(),
+                savedProduct.getUserId(),
+                savedProduct.getBrand(),
+                savedProduct.getModel(),
+                savedProduct.getColor(),
+                savedProduct.getPrice(),
+                savedProduct.getProductType(),
+                savedProduct.getQuantity(),
+                savedProduct.getImageUrl(),
+                savedProduct.getShopType()
+        );
     }
 
     public void deleteProduct(String userId, String productId) {
-        Product product = productRepository.findById(productId).orElseThrow(() -> new RuntimeException("Product not found"));
-        if (!product.getUserId().equals(userId)) throw new RuntimeException("You cannot delete someone else's product!");
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found"));
+        if (!product.getUserId().equals(userId))
+            throw new RuntimeException("You cannot delete someone else's product!");
         productRepository.delete(product);
     }
+
+    // ---------------- All Products (Public) ----------------
+    public List<ProductResponseDTO> getAllProducts() {
+        List<Product> products = productRepository.findAll();
+        List<ProductResponseDTO> response = new ArrayList<>();
+
+        for (Product p : products) {
+            response.add(new ProductResponseDTO(
+                    p.getId(),
+                    p.getUserId(),
+                    p.getBrand(),
+                    p.getModel(),
+                    p.getColor(),
+                    p.getPrice(),
+                    p.getProductType(),
+                    p.getQuantity(),
+                    p.getImageUrl(),
+                    p.getShopType()
+            ));
+        }
+
+        return response;
+    }
+
 
     // ---------------- CART METHODS ----------------
     public CartResponseDTO addToCart(String userId, String productId) {
